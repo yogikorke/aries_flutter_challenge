@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../blocs/options/options_bloc.dart';
 import '../../../blocs/options/options_event.dart';
+import '../../../blocs/options/options_state.dart';
 
 class OptionsInput extends StatefulWidget {
   const OptionsInput({super.key});
@@ -47,6 +48,18 @@ class OptionsInputState extends State<OptionsInput> {
             child: TextFormField(
               decoration: const InputDecoration(labelText: 'Strike Price'),
               keyboardType: TextInputType.number,
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return 'Please enter a strike price';
+                }
+                if (double.tryParse(value) == null) {
+                  return 'Please enter a valid number';
+                }
+                if (double.parse(value) <= 0) {
+                  return 'Strike price must be greater than zero';
+                }
+                return null;
+              },
               onSaved: (value) {
                 _strikePrice = double.parse(value!);
               },
@@ -57,6 +70,18 @@ class OptionsInputState extends State<OptionsInput> {
             child: TextFormField(
               decoration: const InputDecoration(labelText: 'Premium'),
               keyboardType: TextInputType.number,
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return 'Please enter a premium';
+                }
+                if (double.tryParse(value) == null) {
+                  return 'Please enter a valid number';
+                }
+                if (double.parse(value) < 0) {
+                  return 'Premium cannot be negative';
+                }
+                return null;
+              },
               onSaved: (value) {
                 _premium = double.parse(value!);
               },
@@ -67,6 +92,18 @@ class OptionsInputState extends State<OptionsInput> {
             child: TextFormField(
               decoration: const InputDecoration(labelText: 'Quantity'),
               keyboardType: TextInputType.number,
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return 'Please enter a quantity';
+                }
+                if (int.tryParse(value) == null) {
+                  return 'Please enter a valid number';
+                }
+                if (int.parse(value) <= 0) {
+                  return 'Quantity must be greater than zero';
+                }
+                return null;
+              },
               onSaved: (value) {
                 _quantity = int.parse(value!);
               },
@@ -76,18 +113,61 @@ class OptionsInputState extends State<OptionsInput> {
           ElevatedButton(
             onPressed: () {
               if (_formKey.currentState!.validate()) {
+                FocusScope.of(context).unfocus(); // dismiss keyboard
                 _formKey.currentState!.save();
                 context.read<OptionsBloc>().add(AddOptionContract(
                     _optionType, _strikePrice, _premium, _quantity));
+                context.read<OptionsBloc>().add(const CalculateRiskReward());
               }
             },
-            child: const Text('Add Option Contract'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.primary,
+            ),
+            child: Text(
+              'Add Option Contract',
+              style: TextStyle(
+                fontSize: 14,
+                color: Theme.of(context).colorScheme.onPrimary,
+              ),
+            ),
           ),
-          ElevatedButton(
-            onPressed: () {
-              context.read<OptionsBloc>().add(const CalculateRiskReward());
+          const SizedBox(height: 20),
+          BlocBuilder<OptionsBloc, OptionsState>(
+            builder: (context, state) {
+              return ListView.builder(
+                physics: const NeverScrollableScrollPhysics(),
+                shrinkWrap: true,
+                itemCount: state.contracts.length,
+                itemBuilder: (context, index) {
+                  final contract = state.contracts[index];
+                  return Card(
+                    elevation: 4,
+                    child: ListTile(
+                      title: Text(
+                          '${contract.optionType} - Strike: ${contract.strikePrice}, Premium: ${contract.premium}, Quantity: ${contract.quantity}',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Theme.of(context).colorScheme.onSurface,
+                          )),
+                      trailing: IconButton(
+                        icon: const Icon(
+                          Icons.delete_outline,
+                          color: Colors.red,
+                        ),
+                        onPressed: () {
+                          context
+                              .read<OptionsBloc>()
+                              .add(RemoveOptionContract(index));
+                          context
+                              .read<OptionsBloc>()
+                              .add(const CalculateRiskReward());
+                        },
+                      ),
+                    ),
+                  );
+                },
+              );
             },
-            child: const Text('Calculate Risk & Reward'),
           ),
         ],
       ),
